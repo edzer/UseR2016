@@ -50,15 +50,10 @@ Using a small number of use cases, following this sequence, the tutorial will il
 
 and give users the opportunity to experiment with this material.
 
-The tutorial consists of three one-hour blocks, where 45 mins
+The tutorial consists of one-hour blocks, where 40-45 mins
 lecturing/demonstration is followed by 15 mins breaks where
 participants can try to replicate the analysis, work on their own
 data, or start small-group discussions.
-
-Planning: 
-* first hour: spatial and temporal
-* second hour: spatiotemporal, intersections, aggregations
-* third hour: movement data, meaningfulness, data integration
 
 ## Prerequisites attendees should have in order to benefit from the tutorial
 
