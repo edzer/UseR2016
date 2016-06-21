@@ -13,11 +13,212 @@ output:
 The source R-Markdown (.Rmd) file for this document is found [here](https://raw.githubusercontent.com/edzer/UseR2016/master/tutorial.Rmd)
 
 # Introduction
+Two quotes from [Cobb and Moore, 1997](http://www.jstor.org/stable/2975286),
+ 
+> _Data are not just numbers, they are numbers with a context_
+ 
 
+and
+ 
+
+> _in data analysis, context provides meaning_
+
+ 
+illustrate that data analysis without context is essentially meaningless. What is context? We can think of
+
+* _who_ collected or generated the data,
+* _how_ were the data collected (e.g., by which sampling strategy?),
+* for which purpose were the data collected, or generated (_why_)
+* _when_ and _where_ were the data collected
+* _what_ exactly was collected, what do the values refer to, what are measurement units, and what does the value `1` refer to?
+
+We can think of the _who, how_ and _why_ question referring to
+pragmatics of data collection, where _when, where_ and _what_
+refer to data semantics.
+
+## Time in R
+
+Base R has some infrastructure to annotate measurement units, in particular for time and date information:
 ```{r}
-library(sp)
-demo(meuse, ask = FALSE, echo = FALSE)
-plot(meuse)
+now = Sys.time() + c(0, 3600)
+today = Sys.Date() + 0:1
+```
+which represent numeric values pointing to the number of seconds or days elapsed since Jan 1, 1970, 00:00 UTC:
+```{r}
+as.numeric(now)
+as.numeric(today)
+```
+The `class` attribute of these objects
+```{r}
+class(now)
+class(today)
+```
+make it behave meaningfully like time:
+```{r error=TRUE}
+now * now
+now + now
+(dt = now[2] - now[1])
 ```
 
-Equation: $S \Rightarrow Q$
+## Time differences
+
+This last quantity, `dt` has a class 
+```{r}
+class(dt)
+```
+but also a `units` attribute, which can be retrieved by the `units` method:
+```{r}
+units(dt)
+```
+but can also be set to other values, e.g.
+```{r}
+units(dt) = "days"
+dt
+units(dt) = "secs"
+dt
+```
+
+## Measurement units
+Beyond time and time differences, more general support for [SI
+units](https://en.wikipedia.org/wiki/International_System_of_Units)
+and derived units is provided by CRAN package
+[units](http://cran.r-project.org/package=units), which builds upon
+CRAN package [udunits2](http://cran.r-project.org/package=udunits2)
+and the external [udunits](https://www.unidata.ucar.edu/software/udunits/) 
+library, from [UNIDATA](https://www.unidata.ucar.edu/).
+It checks compatibility of units, does unit conversion on the fly
+```{r}
+library(units)
+x = as.units(1:3, "m/s")
+xkmh = x
+units(xkmh) = "km/h"        # explicit conversion
+xkmh
+(y = as.units(1:3, "km/h")) # something different
+x + y                       # implicit conversions
+y + x
+c(x, y)
+```
+it creates derived units where appropriate
+```{r}
+x * y
+x / y
+log(x)
+```
+and also gives meaningful warnings when units are not compatible:
+```{r error=TRUE}
+x + x * y
+```
+as udunits parses units, they can become arbitrarily complex:
+```{r}
+u1 = paste0(rep("m", 100), collapse = "*")
+u2 = "m^100"
+as.units(1:3, u2) + as.units(1:3, u1)
+```
+[units](http://cran.r-project.org/package=units) nicely
+integrates with `data.frame` objects and even better with
+[dplyr](http://cran.r-project.org/package=dplyr):
+```{r}
+library(dplyr)
+x = filter(mtcars, cyl == 8)
+(x1 <- x %>% mutate(mpg = as.units(mpg, "miles/gallon")) %>% head(2))
+x1 %>% mutate(kmpl = as.units(mpg, "km/l")) %>% tbl_df %>% select(c(1, 12))
+```
+
+Summarizing, measurement units
+
+* convert units explicitly, or implicitly/on the fly
+* catch operations that are algebraically correct but _physically meaningless_
+* help carry out [dimensional analysis](https://en.wikipedia.org/wiki/Dimensional_analysis)
+
+and provide, in that sense, part of the context of data.
+
+## Why do we treat space and time not as standard SI units?
+
+Measures of physical quantities such as length, mass, duration have
+a natural, absolute zero value. When measuring absolute time (when)
+and location (where), we need a reference. 
+
+For time, we have Coordinated Universal Time
+([UTC](https://en.wikipedia.org/wiki/Coordinated_Universal_Time));
+different time zones and DST rules are defined with respect to UTC.
+
+For space, different [geodetic
+datums](https://en.wikipedia.org/wiki/Geodetic_datum)
+exist; the best known being the
+[WGS84](https://en.wikipedia.org/wiki/World_Geodetic_System)
+ellipsoid (``world geodetic system-1984'')
+
+WGS84 is a _global_ reference system, and has larger errors
+(deviations from the geoid, the `mean sea level' surface) than
+ellipsoids that are fitted locally. For that reason, local ellipsoids
+might better fit the Earth locally, and are prefered for particular
+surveying projects. Coordinate _transformations_ move from one
+geodetic datum (ellispoid) to another; these transformation may be
+non-unique, non-invertible, and approximate.
+
+Projecting longitude/latitude degrees to a flat representation
+(such as UTM, or Web Mercator) is called coodinate _conversion_;
+this process is usually accurate and invertible.
+
+## When are space and time _not_ relevant?
+
+For a doctor, the identity and age of the patient are more relevant
+than the location of the patient and date of the examination.
+An MRI scan of a patient's brain is understood _with reference to_
+the skull and other reference points, not with reference to the
+geographical location f the MRI scanner.
+
+Many data sets come without information about space and time; this
+usually indicates that these aspects were not considered relevant.
+For the `co2` dataset,
+```{r}
+plot(co2)
+```
+
+the location of measurements ([Mauna
+Loa](https://en.wikipedia.org/wiki/Mauna_Loa)) can be derived from
+the URL mentioned in `?co2`, or even better, from the information
+the URL points to. For the `mtcars` dataset, `?mtcars` reveals when
+the car models described were current (1973-4).
+
+## Time series data
+
+We have seen so far mostly time information, but not information
+that is associated with time. The `co2` data set is an example
+of this, as a time series:
+```{r}
+class(co2)
+summary(co2)
+```
+
+
+# Importing spatial and temporal data
+
+## from tables
+
+## form shapefiles
+
+## from web services
+
+# Spatial data classes in [sp](http://cran.r-project.org/package=sp)
+
+# Spatiotemporal data in [spacetime](http://cran.r-project.org/package=spacetime)
+
+# Trajectory data in [trajectories](http://cran.r-project.org/package=trajectories)
+
+## plotting
+
+## aggregation
+
+* import spatial, temporal, and spatiotemporal data in R
+* map these data structures to and from matrix and data.frame objects
+* work with time series of each of these
+* work with space-time events, and moving objects
+* intersect various spacetime objects, e.g. for spatial and/or temporal selection or for spatial, temporal or spatiotemporal aggregation
+* represent higher concepts such as fields, objects, events, trajectories, and aggregations into the classes, and how to carry out meaningful analysis of these
+
+
+# sessionInfo()
+```{r}
+sessionInfo()
+```
