@@ -1,0 +1,21 @@
+---
+layout: post
+title:  "Handling and Analyzing Spatial, Spatiotemporal and Movement Data"
+date:  "`r format(Sys.time(), '%d %B, %Y')`"
+comments: true
+author: Edzer Pebesma
+output:
+  html_document:
+      toc: true
+      theme: united
+---
+
+# Introduction
+
+```{r}
+library(sp)
+demo(meuse, ask = FALSE, echo = FALSE)
+plot(meuse)
+```
+
+Equation: $S \Rightarrow Q$
