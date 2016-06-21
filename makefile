@@ -10,4 +10,6 @@ commit:
 	git commit -a
 
 push:
+	git commit -a -m 'update'
+	git push
 	(cd html; git commit -a -m 'update'; git push origin gh-pages)
