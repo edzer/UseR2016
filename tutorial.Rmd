@@ -10,6 +10,8 @@ output:
       theme: united
 ---
 
+The source R-Markdown (.Rmd) file for this document is found [here](https://raw.githubusercontent.com/edzer/UseR2016/master/tutorial.Rmd)
+
 # Introduction
 
 ```{r}
