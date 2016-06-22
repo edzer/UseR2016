@@ -132,7 +132,7 @@ Summarizing, measurement units
 
 and provide, in that sense, part of the context of data.
 
-## Why do we treat space and time not as standard SI units?
+## Why don't we treat space and time as special cases of SI units?
 
 Measures of physical quantities such as length, mass, duration have
 a natural, absolute zero value. When measuring absolute time (when)
@@ -181,16 +181,183 @@ the URL mentioned in `?co2`, or even better, from the information
 the URL points to. For the `mtcars` dataset, `?mtcars` reveals when
 the car models described were current (1973-4).
 
-## Time series data
+# Time series data
 
 We have seen so far mostly time information, but not information
-that is associated with time. The `co2` data set is an example
-of this, as a time series:
+that is associated with time, or _time series data_.
+
+## Classes for time series data
+
+The `co2` data set is an example of this, as a time series:
 ```{r}
 class(co2)
 summary(co2)
 ```
 
+The `ts` class, part of base R, accomodates for regular time series, and does
+not use `POSIXt` for time:
+```{r}
+attributes(co2)
+```
+Many of the methods for `ts` do not deal well with semi-regular time series,
+which are regular but contain missing values.
+
+Approaches to deal with irregular time series are found in
+packages [its](http://cran.r-project.org/package=its),
+[zoo](http://cran.r-project.org/package=zoo) and
+[xts](http://cran.r-project.org/package=xts). Package xts
+builds on `POSIXt` as the time index, and extends `zoo`. The
+combination has nice features for
+
+* selection, supporting [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) strings for time periods
+* aggregation, using functions that cut time in particular intervals
+
+What follows is an example where the string "2000:2007" selects all
+data for these three years, and the `aggregate` method (from `zoo`)
+uses the function `as.yearmon` to cut a time period into months,
+convert these into years, and to compute yearly averages:
+```{r}
+data(air, package = "spacetime")
+library(zoo)
+library(xts)
+pm10 = xts(t(air), dates)
+as.year <- function(x) as.numeric(floor(as.yearmon(x)))
+plot(aggregate(pm10["2000::2007", 1], as.year, mean, na.rm = TRUE),
+	ylab = "PM10 (ppm)")
+title("Yearly averaged PM10 values, 2000-2007")
+```
+
+## Extensive or intensive properties?
+
+Physical properties can be [extensive or
+intensive](https://en.wikipedia.org/wiki/Intensive_and_extensive_properties),
+depending on whether the property changes when the size (extent)
+of the system changes: 
+
+* exptensive properties are for instance mass and size: if we cut a rock into pieces, mass and size of a piece change 
+* intensive properties are e.g. temperature or density; these do not necessarily change with size
+
+In the aggregation example above, we computed the yearly _mean_ values,
+but when examining `?aggregate.zoo`, we'd find out that the default aggregation
+function is `sum`, so
+```{r}
+a = aggregate(pm10["2000::2007", 1], as.year, na.rm = TRUE)
+mean(a)
+```
+computes yearly _total_ pm10, from monthly averages, which is not
+physically meaningful for an intensive property like pm10.
+
+## Events, continuous series, aggregations?
+
+Time series data, as represented by the packages mentioned above,
+do not distinguish events from continuous processes: ``values''
+of something are simply associated with a time stamp. Yet, for
+meaningful analysis, their difference could not be larger:
+
+* for events, we can compute counts, or densities over time, but we cannot interpolate; for instance, the temporally interpolated value of earthquake magnitudes for a moment with no earthquake does not make sense
+* for continuous processes,  counts or densities only reveal properties of the sampling procedure, and not of the observed phenomenon (which could have been observed any moment)
+
+Many time series data (`co2` and `pm10` above being two examples)
+concern temporally aggregated values. Yet, their value is not
+explicitly registered with the aggregation period, but rather with
+the starting time of this interval. If, however, instantaneous
+measurements of the same variables would be available (co2 or
+pm10 measured at the start of the month), they would be stored
+identically.  If time periods would be registered explicitly,
+we would in addition have to specify how the associated (co2,
+pm10) value relates to this interval, possibilities are:
+
+* the value is constant throughout this interval
+* the value was aggregated over this interval (in which case the aggregation _function_ needs to be specified)
+
+# Spatial data
+
+## Classes for spatial data
+
+A large majority of spatial data constitute, roughly, of points,
+lines, polygons or grids. As described in [Bivand, Pebesma
+and Gomez-Rubio (2013)](http://asdar-book.org/), package
+[sp](http://cran.r-project.org/package=sp) provides basic
+infrastructure for this, and supports the following classes:
+
+![](spatial.png)
+
+The geometry-only classes, `SpatialXxx`, derive from `Spatial` and
+share a bounding box and coordinate reference system (`proj4string`);
+all the `SpatialXxxDataFrame` classes extend this with a `data.frame`
+carrying attributes associated with the geometries.
+
+Important reasons why many think that using `sp` is a good idea include:
+
+* reinventing the wheel too often creates duplicate work, and calls for many-to-many conversions
+* through [rgdal](http://cran.r-project.org/package=rgdal), `sp` supports reading and writing to and from all 142 [raster](http://gdal.org/formats_list.html) and 84 [vector](http://gdal.org/ogr_formats.html) formats supported by [GDAL](http://www.gdal.org/)
+* through [rgeos](http://cran.r-project.org/package=rgeos), `sp` objects can be used for all [DE-9IM](https://en.wikipedia.org/wiki/DE-9IM) intersections, including topological predicates like _touches_, _overlaps_, _intersects_, _contains_, etc., and also create buffers, unite polygons etc.
+
+## An example: why polygons are complex
+
+`Single' geometry entries for polygons and lines can consist of
+multiple polygons or lines, to accomodate real-word data. In the following
+example we see a state consisting of multiple polygons, one of them 
+containing a hole:
+```{r}
+data(air, package = "spacetime")
+library(sp)
+nds = DE_NUTS1["Niedersachsen",]
+library(ggmap)
+bgMap = get_map(as.vector(bbox(nds)), source = "google", zoom = 7)
+par(mar = rep(0,4))
+merc = CRS("+init=epsg:3857")
+plot(spTransform(nds, merc), bgMap = bgMap, col = grey(.5, alpha = .5))
+```
+
+We can examine the data interactively, thanks to the excellent 
+[mapview](http://cran.r-project.org/package=mapview) package:
+```{r}
+library(mapview)
+mapview(nds)
+```
+
+When properly plotting data, we need to know which
+hole polygon belongs to which enclosing polygon, and
+this makes it difficult (if not impossible) to encode
+polygons in simple tables such as propagated by the [tidy
+data](https://www.jstatsoft.org/article/view/v059i10)
+framework.  The `fortify` method in
+`ggplot2` destroys this structure, and the [ggplot2
+wiki](https://github.com/hadley/ggplot2/wiki/plotting-polygon-shapefiles)
+explains why `ggplot2` cannot properly plot polygons with holes.
+
+In the plot above, we can see that the border of `nds` does not correspond very well
+with that of [openstreetmap](http://www.openstreetmap.org/). This may be due to an
+outdated version of `DE_NUTS1` in the `spacetime` package.
+
+### Exercise
+
+1. visit [gadm](http://gadm.org/)
+1. download the German administrative boundaries as a shapefile from gadm.org
+1. unzip the files starting with `DEU_adm1`, and register in which directory they are 
+1. read them in with `library(rgdal); x = readOGR(".", "DEU_adm1")`, where you replace `.` with the right directory
+1. plot Lower Saxony with mapview (`mapview(x[9,])`)
+1. check whether the Dutch/German boundaries are better, now.
+
+## Selecting features
+
+As we've seen above, we can use the `[` subset operator on `Spatial` objects to select
+geometries/features (rows), or particular attributes, similar
+to how this is done for `data.frame` objects. Further functionality
+is obtained when we use a `Spatial` object as selector, as in
+```{r}
+par(mar = c(4,4,4,1))
+plot(DE_NUTS1[nds,], col = grey(.9), axes = TRUE) # all states touching Lower Saxony;
+plot(nds, col = grey(.5), add = TRUE) # .. which is grey.
+```
+
+this carries out an intersection, and returns intersecting
+geometries, for _any Spatial object type_.
+
+# Spatiotemporal data, movement data
+
+## Class structure
 
 # Importing spatial and temporal data
 
