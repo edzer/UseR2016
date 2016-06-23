@@ -1,6 +1,6 @@
 all:
 	vi tutorial.Rmd
-	Rscript -e 'library(rmarkdown); render("tutorial.Rmd")'
+	Rscript -e 'library(methods); library(rmarkdown); render("tutorial.Rmd")'
 	cp tutorial.html html/index.html
 
 view:

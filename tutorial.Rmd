@@ -34,7 +34,15 @@ illustrate that data analysis without context is essentially meaningless. What i
 
 We can think of the _who, how_ and _why_ question referring to
 pragmatics of data collection, where _when, where_ and _what_
-refer to data semantics.
+refer to data semantics. _Reference systems_ relate numbers (or
+words, or symbols) to the real world; much of this tutorial is
+about reference systems for space, time and attributes. 
+
+At a higher level, reference systems can describe _phenomena_
+in terms of how attributes and identity relate to space and time;
+in particular whether they are continuous or discrete matters for
+what we can meaningfully do with data obtained from these phenomena
+([Scheider et al., 2016](http://ifgi.uni-muenster.de/~epebe_01/generativealgebra.pdf)).
 
 ## Time in R
 
@@ -291,7 +299,7 @@ Important reasons why many think that using `sp` is a good idea include:
 
 * reinventing the wheel too often creates duplicate work, and calls for many-to-many conversions
 * through [rgdal](http://cran.r-project.org/package=rgdal), `sp` supports reading and writing to and from all 142 [raster](http://gdal.org/formats_list.html) and 84 [vector](http://gdal.org/ogr_formats.html) formats supported by [GDAL](http://www.gdal.org/)
-* through [rgeos](http://cran.r-project.org/package=rgeos), `sp` objects can be used for all [DE-9IM](https://en.wikipedia.org/wiki/DE-9IM) intersections, including topological predicates like _touches_, _overlaps_, _intersects_, _contains_, etc., and also create buffers, unite polygons etc.
+* through [rgeos](http://cran.r-project.org/package=rgeos), an interface to [GEOS](https://trac.osgeo.org/geos/), `sp` objects can be used for all [DE-9IM](https://en.wikipedia.org/wiki/DE-9IM) intersections, including topological predicates like _touches_, _overlaps_, _intersects_, _contains_, etc., and also create buffers, unite polygons etc.
 
 ## An example: why polygons are complex
 
@@ -348,42 +356,202 @@ to how this is done for `data.frame` objects. Further functionality
 is obtained when we use a `Spatial` object as selector, as in
 ```{r}
 par(mar = c(4,4,4,1))
-plot(DE_NUTS1[nds,], col = grey(.9), axes = TRUE) # all states touching Lower Saxony;
+plot(DE_NUTS1[nds,], col = "#FFDDDD", axes = TRUE) # all states touching Lower Saxony;
 plot(nds, col = grey(.5), add = TRUE) # .. which is grey.
 ```
 
 this carries out an intersection, and returns intersecting
 geometries, for _any Spatial object type_.
 
+## Aggregation
+
+We can compute yearly mean pm10 values by station, by
+```{r}
+yearmeans = aggregate(pm10, as.year, mean, na.rm = TRUE)
+# merge mean matrix (rows: year; cols: station ) with station data:
+s = SpatialPointsDataFrame(stations, data.frame(t(yearmeans)))
+spplot(s, names.attr = index(yearmeans), sp.layout = list(DE_NUTS1, col = grey(.8)), 
+	as.table = TRUE, colorkey = TRUE)
+```
+
+Suppose that we want state mean pm10 concentrations by year; we can do
+this by _spatial aggregation_:
+
+```{r}
+a = aggregate(s, DE_NUTS1, mean, na.rm = TRUE) 
+spplot(a, names.attr = index(yearmeans), as.table = TRUE, 
+	main = "state mean pm10 of rural background stations")
+```
+
+Here, the `by` argument (2nd arg) of `aggregate` is a `Spatial`
+object; spatial intersection yields the aggregation predicate.
+
+## Spatial statistics, further packages
+
+Methods for statistically analyzing spatial data are well described in the
+spatial statistics literature. Other R packages that deal with handling or
+analyzing spatial data are categorized and described in the CRAN [Task View
+on Spatial Data](http://cran.uni-muenster.de/web/views/Spatial.html).
+
 # Spatiotemporal data, movement data
 
-## Class structure
+We've seen above how temporal data can be stored in `Spatial`
+objects -- by storing variables associated with different times as
+different attributes. This is not optimal, because
 
-# Importing spatial and temporal data
+* the data objects do not know how variables are associated with time
+* it is not always the case that spatial entities have identical times associated with them
 
-## from tables
+There is also a [CRAN Task View on SpatialTemporal
+Data](http://cran.uni-muenster.de/web/views/SpatioTemporal.html)
+that categorizes and describes R packages for handling and analyzing
+spatiotemporal data, including movement data.
 
-## form shapefiles
+## spacetime: Class structure
 
-## from web services
+Building on `xts` and `sp`, R package
+[spacetime](http://cran.r-project.org/package=spacetime) provides
+classes for spatiotemporal data that solve both issues. The class
+diagram is given here:
 
-# Spatial data classes in [sp](http://cran.r-project.org/package=sp)
+![](st.png)
 
-# Spatiotemporal data in [spacetime](http://cran.r-project.org/package=spacetime)
+`STF` and `STS` objects cater spatial _panel data_ (or longitudinal
+data), where each spatial entity has an identical set of time referenced
+obvservations associated with it; examples are
 
-# Trajectory data in [trajectories](http://cran.r-project.org/package=trajectories)
+* employment data per year, per state
+* fixed monitoring stations, measuring air quality every hour
+* time sequences of satellite imagery
 
-## plotting
+Note that these classes _only_ require a space time lattice layout:
 
-## aggregation
+* spatial properties can be anything (points, lines, polygons, grid cells),
+* time sequences may be irregular
 
-* import spatial, temporal, and spatiotemporal data in R
-* map these data structures to and from matrix and data.frame objects
-* work with time series of each of these
-* work with space-time events, and moving objects
+Package `spacetime` comes with routines to read data
+from space-wide tables (where columns reflect different
+spatial features), time-wide tables (where columns reflect
+different times), and long tables (where each space/time
+combination has a row entry); examples of all three are given in
+[Pebesma, 2012](https://www.jstatsoft.org/article/view/v051i07).
+What follows is an example reading from a long table.
+
+## Reading from tables
+
+A long table with panel data is found in package [plm](http://cran.r-project.org/package=plm):
+```{r}
+data("Produc", package = "plm")
+Produc[1:5,1:9]
+```
+
+Since the data contains no spatial information (states) or temporal information as `POSIXct`,
+we need to construct these -- states:
+
+```{r}
+library(maps)
+states.m = map('state', plot=FALSE, fill=TRUE)
+IDs <- sapply(strsplit(states.m$names, ":"), function(x) x[1])
+library(maptools)
+states = map2SpatialPolygons(states.m, IDs=IDs)
+```
+
+years:
+
+```{r}
+yrs = 1970:1986
+time = as.POSIXct(paste(yrs, "-01-01", sep=""), tz = "GMT")
+```
+
+When combining all this information, we do not need to reorder states
+because `states` and `Produc` order states alphabetically. We need to 
+de-select District of Columbia, which is not present in `Produc`:
+```{r}
+# deselect District of Columbia, polygon 8, which is not present in Produc:
+library(spacetime)
+Produc.st = STFDF(states[-8], time, Produc[order(Produc[2], Produc[1]),])
+library(RColorBrewer)
+stplot(Produc.st[,,"unemp"], yrs, col.regions = brewer.pal(9, "YlOrRd"), cuts = 9)
+```
+
+## Movement data
+
+As can be seen from the [CRAN Task View on SpatialTemporal
+Data](http://cran.uni-muenster.de/web/views/SpatioTemporal.html),
+there are quite a few R packages dealing with movement data, many
+of which originate in the ecology domain.
+
+The [trajectories](http://cran.r-project.org/package=trajectories) tries
+to take a more general approach, but uses many of the ideas e.g. from
+[adehabitatLT](http://cran.r-project.org/package=adehabitatLT). In particular,
+it acknowleges that, when we observe movement, we often end up having
+
+* a period of movement registration for a particular item, which has a begin and end time that may not correspond to the life time of the item (`Track`, burst, trip),
+* potentially multiple tracks collected on a single item, with time gaps inbetween during which the item was not tracked (a set of tracks: `Tracks`)
+* multiple items for which `Tracks` are collected (`TracksCollection`)
+
+Think of registering a person's movement with a mobile phone or
+GPS receiver:
+
+* a sequence of location registrations, e.g. once per minute, is collected
+* multiple sequences are obtained when a sequence gets interrupted, e.g. when the phone's battery is empty, or the registration is stopped for some reason (no GPS reception? privacy?)
+* the analysis may concern multiple persons
+
+For this reason, `trajectories` offers `Track`, `Tracks` and `TracksCollection` objects to organize such data:
+
+![](trajectories.png)
+
+Examples of open trajectory data of various kinds are 
+
+* The [Argo](http://www.argo.ucsd.edu/) buoys,
+* The [Envirocar](http://www.envirocar.org/) car tracks (locations + ODB-II in-car sensor data); REST api, uses GeoJSON
+* [Geolife](https://www.microsoft.com/en-us/research/project/geolife-building-social-networks-using-human-location-history/): 182 persons in China tracked for some months, some of whom kept activity (transportation mode) diaries (1.7 Gb when unzipped)
+* Google location history (open to owner only): gives fixes with errors, but also activity classification probabilities
+* [Citibike NYC](https://www.citibikenyc.com/) (only origing and destination fixes)
+* [Atlantic hurricane](http://weather.unisys.com/hurricane/atlantic/) tracks since 1851
+
+Except for the Argo buoys, `trajectories` contains demo scripts for all these examples.
+
+### Exercise
+
+1. check out which demo scripts package `trajectories` has, using command `demo` (and look into its help page)
+1. run some of these demos, 
+1. try to understand what is going on, and what the demo tries to do
+1. for a particular data set, which question could you formulate that could be answered by analyzing these data?
+
+## plotting methods
+
+## trajectory methods
+
+Methods that `Track`, `Tracks` or `TracksCollection` share with the spatial family include
+
+* `[[`,  `$`, `[` retrieve or replace attributes, or select `Track` or `Tracks` 
+* `stplot` create space-time plot
+* `aggregate` spatially aggregate track properties (coercing fixes to points)
+* `bbox` retrieve spatial bounding box
+* `coordinates` retrieve coordinates of fixes
+* `coordnames` retrieve coordinate names of fixes
+* `over` intersect spatially (coercing tracks to `SpatialLines`)
+* `plot` simple plot methods
+* `proj4string` retrieve coordinate reference system
+* `spTransform` (re)project coordinates to new coordinate reference system, or unproject
+* `summary` print simple summary
+
+Methods that are unique for the `Track` family are
+
+* `compare` compares two `Track` objects: for the common time period, a `difftrack` object is created with all distances between them (approximating linearly when times of fixes don't match)
+* `dists` compares two `Tracks` (two sets of `Track` elements) using mean distance, or Frechet distance
+* `downsample` remove fixes from a `Track`, starting with the most densely sampled ones
+* `frechetDist` compute [Frechet distance](https://en.wikipedia.org/wiki/Fr%C3%A9chet_distance) between two `Track` objects
+* `stcube` plot space-time cube for `Track` objects, possibly with openstreetmap base
+* `generalize` resample track to lower freqency or minimal distance
+* `stbox` print the space-time bounding box
+
+
+#  TODO
+
 * intersect various spacetime objects, e.g. for spatial and/or temporal selection or for spatial, temporal or spatiotemporal aggregation
 * represent higher concepts such as fields, objects, events, trajectories, and aggregations into the classes, and how to carry out meaningful analysis of these
-
 
 # sessionInfo()
 ```{r}
