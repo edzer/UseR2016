@@ -547,11 +547,177 @@ Methods that are unique for the `Track` family are
 * `generalize` resample track to lower freqency or minimal distance
 * `stbox` print the space-time bounding box
 
+```{r}
+r = read.csv("http://pebesma.staff.ifgi.de/pm10/3_2a.txt")
+time = as.POSIXct(strptime(paste(r$Date, r$Time), "%Y/%m/%d %H:%M:%S"))
+require(sp)
+pts = SpatialPoints(r[c("Long", "Lat")], CRS("+init=epsg:4326")) # WGS84 long/lat
+library(spacetime)
+library(trajectories)
+tr = Track(STIDF(pts, time, r["pm10"]))
+stbox(tr)
+```
+Some basic plots:
+```{r}
+plot(as(tr, "STIDF"))
+```
+gives a space-time plot, where space indicats the index of each
+spatial item; the plot indicates that there were a few short breaks
+during the data collection.
 
-#  TODO
+Plotting the `Track`, as
+```{r}
+plot(tr)
+```
 
-* intersect various spacetime objects, e.g. for spatial and/or temporal selection or for spatial, temporal or spatiotemporal aggregation
-* represent higher concepts such as fields, objects, events, trajectories, and aggregations into the classes, and how to carry out meaningful analysis of these
+shows the spatial path followed, without anything else. With `stplot`
+
+```{r}
+stplot(tr)
+```
+we get the plot of the `STIDF` object; it cuts time in 6 equal pieces, and plots those.
+
+```{r}
+library(rgl)
+library(rglwidget) 
+stcube(tr)
+rglwidget(elementId="plot3d")
+```
+
+shows the 3-D, interactive space-time track, which even looks nicer when you try
+```{r eval=FALSE}
+stcube(tr, showMap = TRUE)
+```
+
+The `mapview` of the complete trajectory shows a wealth of points:
+```{r}
+require(mapview)
+mapview(as(tr, "SpatialPointsDataFrame"), zcol = "pm10", legend = TRUE)
+```
+
+When we `generalize` this, we get a `SpatialLines` object, with
+(by default) averaged `pm10` values per line segment:
+
+```{r}
+tr0 = generalize(tr, distance = 100)
+class(tr@sp)
+mapview(as(tr0, "Spatial"), zcol = "pm10", lwd = 5, legend = TRUE)
+```
+
+## Multiple tracks
+The following little program will read in all the 16 PM10 tracks,
+and plot them with mapview (this last command only works if `sp`
+devel is installed from github):
+
+```{r}
+names = c("3_1a.txt", "3_2a.txt", "3_2b.txt", "3_3a.txt", "3_3b.txt", 
+"3_3c.txt", "3_4a.txt", "3_5a.txt", "4_1a.txt", "4_2a.txt", "4_3a.txt", 
+"5_1a.txt", "5_3a.txt", "5_4a.txt", "6_1a.txt", "6_2a.txt")
+read.tr = function(f) {
+	r = read.csv(paste0("http://pebesma.staff.ifgi.de/pm10/", f))
+	time = as.POSIXct(strptime(paste(r$Date, r$Time), "%Y/%m/%d %H:%M:%S"))
+	pts = SpatialPoints(r[c("Long", "Lat")], CRS("+init=epsg:4326")) # WGS84 long/lat
+	Track(STIDF(pts, time, r["pm10"]))
+}
+trs = Tracks(lapply(names, function(f) read.tr(f)))
+dim(trs)
+trs0 = generalize(trs, distance = 100)
+dim(trs0)
+mapview(as(trs0, "Spatial"), zcol = "pm10", lwd = 5, legend = TRUE)
+```
+
+## Distances between trajectories
+
+Distances between pairs of tracks can be computed; this is often
+done as a first step before, or an ingredient of clustering
+tracks. The naive 
+```{r eval=FALSE}
+dists(trs0,trs0)
+```
+computes spatial distances in synchronous time; since the tracks in this
+data sets are all taken on different days by a single person, all distances
+will be `NA`. Frechet distances, obtained by
+```{r eval=FALSE}
+d = dists(trs, trs, frechetDist)
+```
+ignores time but preserve ordering (direction); it takes a long
+time to compute.
+
+## Aggregation; densities
+
+Aggregating trajectories _and their attributes_ is not trivial:
+
+* if we'd coerce them to points, differences in sampling density/frequency bias the results
+* if we'd resample them to regular frequency, attributes need to be interpolated
+* we can think of different weighting scheme, depending on distance covered or time spent
+* as shown above, `generalize` aggregates points to lines, and associates aggregated point attributes to line segments
+
+A few examples from a web site that aggregated (my) google location history are here:
+
+![](locationhistory.png)
+![](location2.png)
+![](location3.png)
+
+## Smoothing: storms data
+
+In the following example, 
+```{r}
+data(storms)
+plot(storms, type = 'p')
+smth = function(x, y, xout,...) {
+  predict(smooth.spline(as.numeric(x), y), as.numeric(xout))
+}
+storms.smooth = approxTracksCollection(storms, FUN = smth, n = 200)
+plot(storms.smooth, add = TRUE, col = 'red')
+```
+
+## Simulating random tracks
+
+Random tracks (in free space) can be generated using a bivariate autoregressive process,
+an example is given here, along with a smooth:
+```{r}
+opar = par(mfrow = c(1,2))
+x = rTrack(ar = .4)
+plot(x); title("rough")
+x.smooth = approxTrack(x, FUN = smth, n = 800)
+plot(x.smooth, add=T, col = 'red')
+x = rTrack(ar = .8) # more smooth
+plot(x); title("smooth")
+x.smooth = approxTrack(x, FUN = smth, n = 800)
+plot(x.smooth, add=T, col = 'red')
+par(opar)
+```
+
+# Real-world problems, unsolved
+
+## Practical
+
+* fitting GPS fixes to a road network (map matching); initial work can be found at https://github.com/edzer/fuzzyMM
+* properly representing road networks in R (https://github.com/edzer/spnetwork)
+* simulate movement through a transportation network, e.g. from origin-destination matrices (using [sumo](http://sumo.dlr.de/)?)
+* full support for non-points (lines, polygons, grids) of movement data (e.g. oil spills, fires)
+* deal with out of memory data sets
+* develop proper spatial statistical inference methods for trajectory data (... answering which question?)
+* represent spatial data in an easier way (list column in data.frame), [simple features for R](http://github.com/edzer/sfr/) (see my Wednesday talk)
+
+## Theoretical
+
+When are spatial aggregation and prediction [meaningful](http://www.sciencedirect.com/science/article/pii/S1364815213001977)?
+
+![](intro.png)
+
+What do polygon values refer to? What do raster cell values refer to?
+
+![](choro.png) ![](lu.jpg)
+
+* We think too much in data morphology: points, lines, polygons, grids, trajectories, ...
+* We need to think in underlying phenomena (composed of $S, T, Q, D$):
+    * Fields $S \times T \Rightarrow Q$
+	* Lattices: $R \times I \Rightarrow Q$
+	* Events $D \Rightarrow S \times T \times Q$
+	* (Trajectories: $T \Rightarrow S$)
+	* Objects: $D \Rightarrow T \Rightarrow S \times Q$ 
+* Read more in our paper on [Modelling spatiotemporal information generation](http://pebesma.staff.ifgi.de/generativealgebra.pdf)
 
 # sessionInfo()
 ```{r}
