@@ -669,7 +669,8 @@ Aggregating trajectories _and their attributes_ is not trivial:
 * we can think of different weighting scheme, depending on distance covered or time spent
 * as shown above, `generalize` aggregates points to lines, and associates aggregated point attributes to line segments
 
-A few examples from a web site that aggregated (my) google location history are here:
+A few examples from a web site that aggregates google location
+history from "somebody" are here:
 
 ![](locationhistory.png)
 ![](location2.png)

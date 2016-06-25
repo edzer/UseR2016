@@ -15,7 +15,8 @@ push:
 	(cd html; git commit -a -m 'update'; git push origin gh-pages)
 
 zip:
-	zip tutorial.zip tutorial.Rmd spatial.png st.png trajectories.png intro.png choro.png lu.jpg
+	rm tutorial.zip
+	zip tutorial.zip location*png tutorial.Rmd spatial.png st.png trajectories.png intro.png choro.png lu.jpg
 
 www:
 	scp tutorial.zip pebesma@staff.ifgi.de:public_html
