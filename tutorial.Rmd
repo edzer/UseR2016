@@ -9,8 +9,25 @@ output:
       toc: true
       theme: united
 ---
+# Preamble 
 
-The source R-Markdown (.Rmd) file for this document is found [here](https://raw.githubusercontent.com/edzer/UseR2016/master/tutorial.Rmd)
+The source R-Markdown (.Rmd) file for this html document is found [here](https://raw.githubusercontent.com/edzer/UseR2016/master/tutorial.Rmd); here is the [zip file](http://pebesma.staff.ifgi.de/tutorial.zip) with included figures. 
+
+A list of package is found at the end of this page. 
+The packages this script attaches can be installed by running
+```{r eval=FALSE}
+pkg = c("sp", "xts", "zoo", "spacetime", "trajectories",
+"maptools", "maps", "mapview", "leaflet", "rglwidget",
+"rgl", "RColorBrewer", "ggmap", "ggplot", "dplyr",
+"rmarkdown", "units")
+install.packages(pkg)
+```
+
+To re-create (reproduce) this html, using `knit html` in Rstudio, have all packages installed, and then:
+
+* unzip the zip file, record the directory where they are unzipped
+* in RStudio, set the working directory here by `setwd("/path/to/this_dir")`
+* in RStudio, open the `tutorial.Rmd` file and click on the button `knit html`
 
 # Introduction
 Two quotes from [Cobb and Moore, 1997](http://www.jstor.org/stable/2975286),
@@ -688,19 +705,19 @@ plot(x.smooth, add=T, col = 'red')
 par(opar)
 ```
 
-# Real-world problems, unsolved
+# Real-world problems, work in progress
 
-## Practical
+## At the engineering level
 
-* fitting GPS fixes to a road network (map matching); initial work can be found at https://github.com/edzer/fuzzyMM
-* properly representing road networks in R (https://github.com/edzer/spnetwork)
+* fitting GPS fixes to a road network (map matching); initial work found [here](https://github.com/edzer/fuzzyMM)
+* properly representing [road networks in R](https://github.com/edzer/spnetwork)
 * simulate movement through a transportation network, e.g. from origin-destination matrices (using [sumo](http://sumo.dlr.de/)?)
-* full support for non-points (lines, polygons, grids) of movement data (e.g. oil spills, fires)
+* more support for non-point (i.e., lines, polygons, grids) movement data (e.g. oil spills, fires)
 * deal with out of memory data sets
 * develop proper spatial statistical inference methods for trajectory data (... answering which question?)
-* represent spatial data in an easier way (list column in data.frame), [simple features for R](http://github.com/edzer/sfr/) (see my Wednesday talk)
+* represent spatial data in an easier (`list` column in `data.frame`) and interoperable way, [simple features for R](http://github.com/edzer/sfr/) (come and see my Wednesday talk in the Spatial session)
 
-## Theoretical
+## A practical theory for meaningful spatial statistics
 
 When are spatial aggregation and prediction [meaningful](http://www.sciencedirect.com/science/article/pii/S1364815213001977)?
 
@@ -711,13 +728,15 @@ What do polygon values refer to? What do raster cell values refer to?
 ![](choro.png) ![](lu.jpg)
 
 * We think too much in data morphology: points, lines, polygons, grids, trajectories, ...
-* We need to think in underlying phenomena (composed of $S, T, Q, D$):
-    * Fields $S \times T \Rightarrow Q$
-	* Lattices: $R \times I \Rightarrow Q$
-	* Events $D \Rightarrow S \times T \times Q$
+* We need to think in underlying phenomena, as _functions composed_ of rererence systems
+    * Basic reference systems: $S$ space, $T$ time, $Q$ quality, $D$ entity
+	* Derived reference systems: $R$ for regions/point sets, $I$ for time intervals/instance sets
+    * *Fields*: $S \times T \Rightarrow Q$
+	* *Lattices*: $R \times I \Rightarrow Q$
+	* *Events*: $D \Rightarrow S \times T \times Q$
 	* (Trajectories: $T \Rightarrow S$)
-	* Objects: $D \Rightarrow T \Rightarrow S \times Q$ 
-* Read more in our paper on [Modelling spatiotemporal information generation](http://pebesma.staff.ifgi.de/generativealgebra.pdf)
+	* *Objects*: $D \Rightarrow T \Rightarrow S \times Q$ 
+* Read more in the paper on [Modelling spatiotemporal information generation](http://pebesma.staff.ifgi.de/generativealgebra.pdf)
 
 # sessionInfo()
 ```{r}
