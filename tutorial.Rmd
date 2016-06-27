@@ -18,7 +18,7 @@ The packages this script attaches can be installed by running
 ```{r eval=FALSE}
 pkg = c("sp", "xts", "zoo", "spacetime", "trajectories",
 "maptools", "maps", "mapview", "leaflet", "rglwidget",
-"rgl", "RColorBrewer", "ggmap", "ggplot", "dplyr",
+"rgl", "RColorBrewer", "ggmap", "ggplot2", "dplyr",
 "rmarkdown", "units")
 install.packages(pkg)
 ```
