@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Handling and Analyzing Spatial, Spatiotemporal and Movement Data"
-date:  "`r format(Sys.time(), '%d %B, %Y')`"
+date:  "27 June, 2016"
 comments: true
 author: Edzer Pebesma
 output:
@@ -113,6 +113,9 @@ and the external [udunits](https://www.unidata.ucar.edu/software/udunits/)
 library, from [UNIDATA](https://www.unidata.ucar.edu/).
 It checks compatibility of units, does unit conversion on the fly
 ```{r}
+units_file = system.file("share/udunits2.xml", package="udunits2")
+if (units_file == "") stop("install package udunits2 first")
+Sys.setenv(UDUNITS2_XML_PATH = units_file) # cope with bug in udunits2 0.8.1 on Win & Mac
 library(units)
 x = as.units(1:3, "m/s")
 xkmh = x
