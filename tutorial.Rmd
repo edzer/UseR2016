@@ -117,12 +117,16 @@ units_file = system.file("share/udunits2.xml", package="udunits2")
 if (units_file == "") stop("install package udunits2 first")
 Sys.setenv(UDUNITS2_XML_PATH = units_file) # cope with bug in udunits2 0.8.1 on Win & Mac
 library(units)
-x = as.units(1:3, "m/s")
+m = with(ud_units,  m)
+s = with(ud_units,  s)
+km = with(ud_units, km)
+h = with(ud_units,  h)
+x = 1:3 * m/s
 xkmh = x
-units(xkmh) = "km/h"        # explicit conversion
+units(xkmh) = km/h        # explicit conversion
 xkmh
-(y = as.units(1:3, "km/h")) # something different
-x + y                       # implicit conversions
+(y = 1:3 * km/h)          # something different
+x + y                     # implicit conversions
 y + x
 c(x, y)
 ```
@@ -138,18 +142,9 @@ x + x * y
 ```
 as udunits parses units, they can become arbitrarily complex:
 ```{r}
-u1 = paste0(rep("m", 100), collapse = "*")
-u2 = "m^100"
-as.units(1:3, u2) + as.units(1:3, u1)
-```
-[units](http://cran.r-project.org/package=units) nicely
-integrates with `data.frame` objects and even better with
-[dplyr](http://cran.r-project.org/package=dplyr):
-```{r}
-library(dplyr)
-x = filter(mtcars, cyl == 8)
-(x1 <- x %>% mutate(mpg = as.units(mpg, "miles/gallon")) %>% head(2))
-x1 %>% mutate(kmpl = as.units(mpg, "km/l")) %>% tbl_df %>% select(c(1, 12))
+u1 = make_unit(paste0(rep("m", 100), collapse = "*"))
+u2 = m^100
+1:3 * u2 + 1:3 * u1
 ```
 
 Summarizing, measurement units
