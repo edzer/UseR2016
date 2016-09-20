@@ -3,6 +3,10 @@ all:
 	Rscript -e 'library(methods); library(rmarkdown); render("tutorial.Rmd")'
 	cp tutorial.html html/index.html
 
+ex:
+	Rscript -e 'library(methods); library(rmarkdown); render("ex.Rmd")'
+	cp ex.html html/ex.html
+
 view:
 	google-chrome tutorial.html
 
@@ -12,7 +16,7 @@ commit:
 push:
 	git commit -a -m 'update'
 	git push
-	(cd html; git commit -a -m 'update'; git push origin gh-pages)
+	(cd html; git add *; git commit -a -m 'update'; git push origin gh-pages)
 
 zip:
 	rm tutorial.zip

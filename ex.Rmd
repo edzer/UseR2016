@@ -1,0 +1,23 @@
+# Exercises, geostat 2016, Albacete, day 3
+
+## Morning
+
+1. Read the file `http://pebesma.staff.ifgi.de/pm10/3_1a.txt` into R, using `read.csv`, save it in `x`
+1. What is the class of the object returned by `read.csv`?
+1. What is the class of each of the columns in `x`?
+1. Create a new column, `DateTime`, that combines `Date` and `Time`, using `paste`.
+1. What is the class of column `DateTime`?
+1. Create a new column, `time`, of class `POSIXct`, using `strptime`; you need to specify the correct format string; look into the examples and read the docs of `strptime`.
+1. Plot the spatial points of the dataset. What would be a good aspect ratio for this plot?
+1. Try to plot the data as a 3-D plot, as a line, using rgl
+
+## Afternoon
+
+1. Create a `SpatialPoints` object, called `spobj`, from the latitude and longitude data.
+2. Is Latitude along your y-axis?
+3. Tell the `SpatialPoints` object that its coordinate are latitude longitude in WGS84, using `proj4string`
+4. plot the object again, using argument `axes = TRUE`
+5. Create a `Track` object from this data, using package `trajectories` (create an `STI` object first, using
+`STI` in `spacetime`)
+6. Plot the track
+7. Generalize the track to intervals with a distance of 100m, using `generalize`
